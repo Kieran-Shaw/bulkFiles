@@ -36,4 +36,7 @@ class s3Client:
     def downloadFile(s3Client,bucket_name,prefix,state,year,quarter,file):
         file_path = '/Users/kieranshaw/Documents/Nava Documents/biz_ops_projects/ideon_api/small_group_data/'+state+'_'+year+'_'+quarter+'_'+file+'.csv'
         s3Client.download_file(bucket_name,prefix,file_path)
-        return
+        if os.path.exists(file_path):
+            print(state+'_'+year+'_'+'quarter'"File downloaded successfully.")
+        else:
+            print("File download failed.")
