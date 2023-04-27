@@ -1,17 +1,12 @@
 import boto3
 import urllib.parse
 import os
-from pathlib import Path
-from dotenv import load_dotenv
-
-
 
 class s3Client:
     def __init__(self,aws_access_key_id,aws_secret_access_key):
-        load_dotenv()
         self.client = None
-        self.aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
-        self.aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
     
     def connect(self):
         self.client = boto3.client('s3',self.aws_access_key_id,self.aws_secret_access_key)
