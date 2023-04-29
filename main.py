@@ -1,26 +1,28 @@
-from modules.bigQueryClient import BigQueryClient
+from modules.fileProcessing import fileProcessing
+from modules.s3Client import s3Client
+from modules.bigQueryClient import bigQueryClient
 import pandas as pd
+import os
+import datetime
+from dotenv import load_dotenv
 
+### ENV VARIABLES ###
+load_dotenv()
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+PROJECT_ID = os.getenv('PROJECT_ID')
 
+### SETTING CONFIG VARIABLES
+CURRENT_YEAR = '2023'
+CURRENT_QUARTER = 'Q1'
+# CURRENT_YEAR = datetime.datetime.now().strftime('%Y')
+# CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
+STATES_LIST = ['CA','NY']
 
-bq_client = BigQueryClient('small-group-quote')
-query = """
-with tmp as (
-  select *
-  from `small-group-quote.2023_q2.zip_counties_rating_area`
-  where zip_code = 95030 /* variable for zip_code */
-)
-select *
-from `small-group-quote.2023_q2.pricings` as p
-join tmp on p.rating_area_id = tmp.rating_area_id
-where p.plan_id = '40513CA0000002-77'
-"""
-query_result = bq_client.execute_query(query)
+### INSTANTIATE CLASSES
+s3_client = s3Client(AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY)
+big_query_client = bigQueryClient(PROJECT_ID)
+file_process = fileProcessing(current_year=CURRENT_YEAR,current_quarter=CURRENT_QUARTER,states_list=STATES_LIST,s3Client=s3_client,bigQueryClient=big_query_client)
 
-rows = []
-for row in query_result:
-    rows.append(dict(row))
-
-# Convert the list of rows into a dataframe
-df = pd.DataFrame(rows)
-print(df.head(5))
+### RUN CODE
+file_process.fileProcess()
