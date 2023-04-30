@@ -27,19 +27,21 @@ class fileProcessing:
             5. Delete the files from local computer
             6. Copy over the rating area file [note - we should ask Ideon to include this in the bulk files, not sure why it is not there]
             """
+
             local_download_list = fileProcessing.yearDownload(self)
             # manipulate the files / concat the files
-                # concat the like files
-                # save new merged files to local_computer
-                # delete the non-merged files
-                # return list of newly created file paths
+            local_download_combined_list = fileProcessing.concatFiles(self,local_download_list=local_download_list)
+            
             # upload the files
+            
                 # create a new dataset in bigquery
                 # upload those new files from the stored file paths
                 # delete those files from local computer
-            job = self.bigQueryClient.copyTable(source_dataset=f'{str(int(self.current_year)-1)}ACAPlans',source_table='zip_counties_rating_area',destination_dataset=f'{self.current_year}ACAPlans',destination_table='zip_counties_rating_area')
-            if eval_status:
-                print('Complete!')
+
+
+            # job = self.bigQueryClient.copyTable(source_dataset=f'{str(int(self.current_year)-1)}ACAPlans',source_table='zip_counties_rating_area',destination_dataset=f'{self.current_year}ACAPlans',destination_table='zip_counties_rating_area')
+            # if eval_status:
+            #     print('Complete!')
 
             return
         elif not new_year:
@@ -94,6 +96,31 @@ class fileProcessing:
         if all(download_eval):
             print(f'Downloaded Files: {local_download_list}')
         return local_download_list
+    
+    def concatFiles(self,local_download_list:list):
+        combined_file_path = []
+        while local_download_list:
+            # pop the index of the first file, get the base_name of the file (ex: pricings.csv), look through list to find the matching file, pop the matching file
+            file = local_download_list.pop(0)
+            file_base_name = fileProcessing.extractFileName(self,file_path=file)
+            matching_file_list = [f for f in local_download_list if file_base_name == fileProcessing.extractFileName(self,file_path=f)]
+            local_download_list = [f for f in local_download_list if f not in matching_file_list]
+            matching_file_list.append(file)
+
+            # download the files and return a dataframe
+            df = fileProcessing.concatCSV(self,matched_files=matching_file_list)
+
+            # save to local computer
+            downloads_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
+            download_file_path = f'{downloads_folder}/{self.current_year}{file_base_name}_total.csv'
+            df.to_csv(download_file_path,index=False)
+
+            # if the file was saved, append it to return_list and delete the files in the matching_file_list
+            if os.path.exists(download_file_path):
+                combined_file_path.append(download_file_path)
+                fileProcessing.deleteLocalDownload(local_file_path_list=matching_file_list)
+
+        return combined_file_path
 
     def quarterUpload(self,local_download_list:list):
         eval_list = []
@@ -126,7 +153,7 @@ class fileProcessing:
         prefix = parsed_url.path.lstrip('/')
         return bucket_name, prefix
     
-    def stringBuild(process_state:str,year:str,quarter:str,file_name:str = None,specific_file:bool =True):
+    def stringBuild(process_state:str,year:str,quarter:str,file_name:str = None,specific_file:bool = True):
         if specific_file:
             s3_url = f's3://vericred-emr-workers/production/plans/nava_benefits/csv/small_group/{process_state}/{year}/{quarter}/{file_name}.csv'
             bucket_name, prefix = fileProcessing.bucketNamePrefix(s3_url=s3_url)
@@ -158,15 +185,24 @@ class fileProcessing:
         else:
             return False
     
-    def readCSV(self,local_file_path):
-        try:
-            df = pd.read_csv(local_file_path)
-            df = fileProcessing.addQuarterColumn(self,df)
-            return df
-        except Exception as e:
-            print(f'An error ocurred: {e}')
+    def readCSV(self,local_file_path:str):
+        # find the base name to see == pricings, it so append the quarter column
+        file_base_name = fileProcessing.extractFileName(self,file_path=local_file_path)
+        if file_base_name == 'pricings':
+            try:
+                df = pd.read_csv(local_file_path)
+                df = fileProcessing.addQuarterColumn(self,df)
+                return df
+            except Exception as e:
+                print(f'An error ocurred: {e}')
+        elif file_base_name != 'pricings':
+            try:
+                df = pd.read_csv(local_file_path)
+                return df
+            except Exception as e:
+                print(f'An error occured: {e}')
 
-    def addQuarterColumn(self,df):
+    def addQuarterColumn(self,df:pd.DataFrame):
         df['quarter'] = str(self.current_quarter)
         return df
     
@@ -181,4 +217,18 @@ class fileProcessing:
     
     def buildFilename(file_string):
         return file_string.split('/')[-1]
-
+    
+    def extractFileName(self,file_path:str):
+        start_str = self.current_quarter
+        end_str = '.csv'
+        start_index = file_path.index(start_str) + len(start_str)
+        end_index = file_path.index(end_str)
+        return file_path[start_index:end_index]
+    
+    def concatCSV(self,matched_files:list):
+        df = pd.DataFrame()
+        for i in range(len(matched_files)):
+            df_download = fileProcessing.readCSV(self,matched_files[i])
+            df = pd.concat([df,df_download],ignore_index=True)
+        df.reset_index(drop=True,inplace=True)
+        return df
