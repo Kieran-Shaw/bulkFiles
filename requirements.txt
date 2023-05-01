@@ -1,0 +1,4 @@
+pandas==1.4.3
+google-cloud-bigquery==2.35.0
+boto3==1.19.63
+python-dotenv==0.19.3

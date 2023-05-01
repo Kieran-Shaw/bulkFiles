@@ -3,7 +3,6 @@ from modules.s3Client import s3Client
 from modules.bigQueryClient import bigQueryClient
 import pandas as pd
 import os
-import datetime
 from dotenv import load_dotenv
 
 ### ENV VARIABLES ###
@@ -13,10 +12,8 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 PROJECT_ID = os.getenv('PROJECT_ID')
 
 ### SETTING CONFIG VARIABLES
-CURRENT_YEAR = '2023'
-CURRENT_QUARTER = 'Q3'
-# CURRENT_YEAR = datetime.datetime.now().strftime('%Y')
-# CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
+CURRENT_YEAR = datetime.datetime.now().strftime('%Y')
+CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
 STATES_LIST = ['CA','NY']
 
 ### INSTANTIATE CLASSES
