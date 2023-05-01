@@ -27,23 +27,28 @@ class fileProcessing:
             5. Delete the files from local computer
             6. Copy over the rating area file [note - we should ask Ideon to include this in the bulk files, not sure why it is not there]
             """
-
+            eval_status = []
             local_download_list = fileProcessing.yearDownload(self)
             # manipulate the files / concat the files
             local_download_combined_list = fileProcessing.concatFiles(self,local_download_list=local_download_list)
+            return
+            upload_eval = fileProcessing.yearUpload(self,local_download_concat_list=local_download_combined_list)
+            if upload_eval:
+                eval = fileProcessing.deleteLocalDownload(local_download_combined_list)
+                eval_status.append(eval)
+                job = self.bigQueryClient.copyTable(source_dataset=f'{str(int(self.current_year)-1)}ACAPlans',source_table='zip_counties_rating_area',destination_dataset=f'{self.current_year}ACAPlans',destination_table='zip_counties_rating_area')
+                if job:
+                    eval_status.append(True)
+                else:
+                    eval_status.append(False)
+            else:
+                print('Files Not Deleted, Check Downloads')
             
-            # upload the files
-            
-                # create a new dataset in bigquery
-                # upload those new files from the stored file paths
-                # delete those files from local computer
-
-
-            # job = self.bigQueryClient.copyTable(source_dataset=f'{str(int(self.current_year)-1)}ACAPlans',source_table='zip_counties_rating_area',destination_dataset=f'{self.current_year}ACAPlans',destination_table='zip_counties_rating_area')
-            # if eval_status:
-            #     print('Complete!')
+            if all(eval_status):
+                print('Complete!')
 
             return
+
         elif not new_year:
             print('Not A New Year, Starting Process...')
             """
@@ -57,6 +62,8 @@ class fileProcessing:
                 eval_status = fileProcessing.deleteLocalDownload(local_download_list)
                 if eval_status:
                     print('Complete!')
+                else:
+                    print('Files Not Deleted, Check Downloads')
             return
 
     def newYearLogic(self):
@@ -112,7 +119,7 @@ class fileProcessing:
 
             # save to local computer
             downloads_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
-            download_file_path = f'{downloads_folder}/{self.current_year}{file_base_name}_total.csv'
+            download_file_path = f'{downloads_folder}/{self.current_year}{self.current_quarter}{file_base_name}_total.csv'
             df.to_csv(download_file_path,index=False)
 
             # if the file was saved, append it to return_list and delete the files in the matching_file_list
@@ -126,14 +133,38 @@ class fileProcessing:
         eval_list = []
         big_query_dataset_name = fileProcessing.buildDatasetName(self)
         table_name = 'pricings'
-        write_disposition = 'WRITE_APPEND'
         for i in range(len(local_download_list)):
             df = fileProcessing.readCSV(self,local_download_list[i])
-            job = self.bigQueryClient.appendToTable(df,big_query_dataset_name,table_name,write_disposition)
+            job = self.bigQueryClient.appendToTable(df,big_query_dataset_name,table_name)
             if job:
                 eval_list.append(True)
         if all(eval_list):
             print(f'Uploaded Files: {local_download_list}')
+            return True
+        else:
+            return False
+        
+    def yearUpload(self,local_download_concat_list:list):
+        eval_list = []
+        dataset_id = f'{str(self.current_year)}ACAPlans'
+
+        # create a new dataset & return status, append to status list
+        created_result = self.bigQueryClient.createDataset(dataset_id=dataset_id)     
+        eval_list.append(created_result)
+
+        # upload those new files from the stored file paths
+        for i in range(len(local_download_concat_list)):
+            df = pd.read_csv(local_download_concat_list[i])
+            # FIX HERE, ONE OF THE DATASETS IS THROWING AN ERROR ON SOME COLUMNS DATA TYPE
+
+            dataset_name = fileProcessing.extractFileName(self,file_path=local_download_concat_list[i])
+            dataset_name.replace('_total','')
+            job = self.bigQueryClient.createTable(df=df,dataset_name=dataset_id,table_name=dataset_name)
+            if job:
+                eval_list.append(True)
+        
+        if all(eval_list):
+            print(f'Uploaded Files: {local_download_concat_list}')
             return True
         else:
             return False

@@ -13,7 +13,7 @@ class bigQueryClient:
         """
         self.client = bigquery.Client(project=self.project_id)
     
-    def appendToTable(self,df:pd.DataFrame,dataset_name:str,table_name:str,write_disposition:str):
+    def appendToTable(self,df:pd.DataFrame,dataset_name:str,table_name:str,write_disposition:str = 'WRITE_APPEND'):
         """
         Append to table in the database that already exists. the to_gbq looks to the credentials placed by aut
         """
@@ -27,15 +27,28 @@ class bigQueryClient:
         )
         try:
             job = self.client.load_table_from_dataframe(dataframe=df,destination=table_id,job_config=job_config)
+            print(f'Appended {table_name} to {dataset_name}!')
             return job.result()
         except Exception as e:
             print(f'An error occured: {e}')
     
-    def createTable(self,df:pd.DataFrame,dataset_name:str,table_name:str,write_dispositionstr):
+    def createTable(self,df:pd.DataFrame,dataset_name:str,table_name:str):
         """
         Create a new table in a dataset that already exists
         """
-        return
+        if not self.client:
+            self.connect()
+
+        table_id = f'{self.project_id}.{dataset_name}.{table_name}'
+        job_config = bigquery.LoadJobConfig(
+            autodetect=True
+        )
+        try:
+            job = self.client.load_table_from_dataframe(df, table_id, job_config=job_config)
+            print(f'Created {table_name} & {len(df.index)} Rows, Dataset Name: {dataset_name}')
+            return job.result()
+        except Exception as e:
+            print(f'An error occured: {e}')
     
     def copyTable(self,source_dataset:str,source_table:str,destination_dataset:str,destination_table:str):
         """
@@ -53,11 +66,21 @@ class bigQueryClient:
         except Exception as e:
             print(f'An error occured: {e}')
 
-    def createDataset(self,dataset_name:str):
+    def createDataset(self,dataset_id:str):
         """
         Create a new dataset in Bigquery wihtin a project
         """
-        return
+        if not self.client:
+            self.connect()
+
+        dataset_id = f'{dataset_id}'
+        try:
+            self.client.create_dataset(dataset_id)
+            print(f'New Year Dataset Created: {dataset_id}')
+            return True
+        except Exception as e:
+            print(f'An error occured: {e}')
+            return False
         
 
 
