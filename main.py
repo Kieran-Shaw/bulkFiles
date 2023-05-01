@@ -14,7 +14,7 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 
 ### SETTING CONFIG VARIABLES
 CURRENT_YEAR = '2023'
-CURRENT_QUARTER = 'Q1'
+CURRENT_QUARTER = 'Q3'
 # CURRENT_YEAR = datetime.datetime.now().strftime('%Y')
 # CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
 STATES_LIST = ['CA','NY']

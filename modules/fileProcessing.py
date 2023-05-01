@@ -31,7 +31,6 @@ class fileProcessing:
             local_download_list = fileProcessing.yearDownload(self)
             # manipulate the files / concat the files
             local_download_combined_list = fileProcessing.concatFiles(self,local_download_list=local_download_list)
-            return
             upload_eval = fileProcessing.yearUpload(self,local_download_concat_list=local_download_combined_list)
             if upload_eval:
                 eval = fileProcessing.deleteLocalDownload(local_download_combined_list)
@@ -158,7 +157,7 @@ class fileProcessing:
             # FIX HERE, ONE OF THE DATASETS IS THROWING AN ERROR ON SOME COLUMNS DATA TYPE
 
             dataset_name = fileProcessing.extractFileName(self,file_path=local_download_concat_list[i])
-            dataset_name.replace('_total','')
+            dataset_name = dataset_name.strip('_total')
             job = self.bigQueryClient.createTable(df=df,dataset_name=dataset_id,table_name=dataset_name)
             if job:
                 eval_list.append(True)
