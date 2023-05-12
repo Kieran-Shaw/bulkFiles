@@ -14,7 +14,9 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 
 ### SETTING CONFIG VARIABLES
 CURRENT_YEAR = datetime.datetime.now().strftime('%Y')
-CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
+# CURRENT_QUARTER = 'Q'+str((datetime.datetime.now().month - 1) // 3 + 1)
+# CURRENT_YEAR = '2023'
+CURRENT_QUARTER = 'Q3'
 STATES_LIST = ['CA','NY']
 
 ### INSTANTIATE CLASSES
@@ -24,3 +26,10 @@ file_process = fileProcessing(current_year=CURRENT_YEAR,current_quarter=CURRENT_
 
 ### RUN CODE
 file_process.fileProcess()
+
+"""
+1. Not New Year
+    * Download Pricings & Plans Files
+    * Concat the Pricings and Plans Files into one Each
+    * Upload those to the correct Table
+"""

@@ -29,7 +29,6 @@ class fileProcessing:
             """
             eval_status = []
             local_download_list = fileProcessing.yearDownload(self)
-            # manipulate the files / concat the files
             local_download_combined_list = fileProcessing.concatFiles(self,local_download_list=local_download_list)
             upload_eval = fileProcessing.yearUpload(self,local_download_concat_list=local_download_combined_list)
             if upload_eval:
@@ -45,7 +44,6 @@ class fileProcessing:
             
             if all(eval_status):
                 print('Complete!')
-
             return
 
         elif not new_year:
@@ -56,9 +54,12 @@ class fileProcessing:
             Concat that file to the pricings table in bigquery
             """
             local_download_list = fileProcessing.quarterDownload(self)
-            upload_eval = fileProcessing.quarterUpload(self,local_download_list)
+            # I need to concat the files
+            local_download_combined_list = fileProcessing.concatFiles(self,local_download_list=local_download_list)
+            upload_eval = fileProcessing.quarterUpload(self,local_download_list=local_download_combined_list)
+            # upload_eval = fileProcessing.quarterUpload(self,local_download_list)
             if upload_eval:
-                eval_status = fileProcessing.deleteLocalDownload(local_download_list)
+                eval_status = fileProcessing.deleteLocalDownload(local_download_combined_list)
                 if eval_status:
                     print('Complete!')
                 else:
@@ -74,13 +75,15 @@ class fileProcessing:
     def quarterDownload(self):
         local_download_list = []
         download_eval = []
+        quarter_table_list = ['pricings','plans']
         for i in range(len(self.states_list)):
-            bucket_name, prefix = fileProcessing.stringBuild(self.states_list[i],self.current_year,self.current_quarter,'pricings')
-            local_file_path = fileProcessing.localFilePath(self,self.states_list[i])
-            download_status = self.s3Client.downloadFile(bucket_name,prefix,local_file_path)
-            if download_status:
-                download_eval.append(True)
-                local_download_list.append(local_file_path)
+            for t in range(len(quarter_table_list)):
+                bucket_name, prefix = fileProcessing.stringBuild(self.states_list[i],self.current_year,self.current_quarter,file_name=quarter_table_list[t],specific_file=True)
+                local_file_path = fileProcessing.localFilePath(self,self.states_list[i],file_name=quarter_table_list[t],specific_file=True)
+                download_status = self.s3Client.downloadFile(bucket_name,prefix,local_file_path)
+                if download_status:
+                    download_eval.append(True)
+                    local_download_list.append(local_file_path)
         if all(download_eval):
             print(f'Downloaded Files: {local_download_list}')
         return local_download_list
@@ -131,10 +134,12 @@ class fileProcessing:
     def quarterUpload(self,local_download_list:list):
         eval_list = []
         big_query_dataset_name = fileProcessing.buildDatasetName(self)
-        table_name = 'pricings'
+
         for i in range(len(local_download_list)):
             df = fileProcessing.readCSV(self,local_download_list[i])
-            job = self.bigQueryClient.appendToTable(df,big_query_dataset_name,table_name)
+            dataset_name = fileProcessing.extractFileName(self,file_path=local_download_list[i])
+            dataset_name = dataset_name.strip('_total')
+            job = self.bigQueryClient.appendToTable(df,dataset_name=big_query_dataset_name,table_name=dataset_name)
             if job:
                 eval_list.append(True)
         if all(eval_list):
@@ -168,10 +173,10 @@ class fileProcessing:
         else:
             return False
 
-    def localFilePath(self,state:str,file_name:str = None,specific_file:bool = True):
+    def localFilePath(self,state:str,file_name:str,specific_file:bool = True):
         if specific_file:
             downloads_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
-            download_file_path = f'{downloads_folder}/{state}{str(self.current_year)}{str(self.current_quarter)}pricings.csv'
+            download_file_path = f'{downloads_folder}/{state}{str(self.current_year)}{str(self.current_quarter)}{str(file_name)}.csv'
         elif not specific_file:
             downloads_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
             download_file_path = f'{downloads_folder}/{state}{str(self.current_year)}{str(self.current_quarter)}{str(file_name)}'
@@ -216,16 +221,16 @@ class fileProcessing:
             return False
     
     def readCSV(self,local_file_path:str):
-        # find the base name to see == pricings, it so append the quarter column
+        # find the base name to see == pricings OR plans, it so append the quarter column
         file_base_name = fileProcessing.extractFileName(self,file_path=local_file_path)
-        if file_base_name == 'pricings':
+        if file_base_name == 'pricings' or file_base_name == 'plans':
             try:
                 df = pd.read_csv(local_file_path)
                 df = fileProcessing.addQuarterColumn(self,df)
                 return df
             except Exception as e:
                 print(f'An error ocurred: {e}')
-        elif file_base_name != 'pricings':
+        else:
             try:
                 df = pd.read_csv(local_file_path)
                 return df
